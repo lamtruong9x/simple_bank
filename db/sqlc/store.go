@@ -57,7 +57,7 @@ type TransferTxResult struct {
 	ToEntry     Entry    `json:"to_entry"`
 }
 
-var txKey = struct{}{}
+//var txKey = struct{}{}
 
 // TransferTx performs a money transfer from one account to the other.
 // It creates the transfer, add account entries, and update accounts' balance within a database transaction
@@ -96,41 +96,41 @@ func (store *Store) TransferTx(ctx context.Context, arg TransferTxParams) (Trans
 		if err != nil {
 			return err
 		}
-
-		//fmt.Println(txName, "get account 1")
-		// account1, err := q.GetAccountForUpdate(context.Background(), arg.FromAccountID)
-		// if err != nil {
-		// 	return err
-		// }
-
-		//fmt.Println(txName, "update account 1")
-		result.FromAccount, err = q.AddAccountBalance(context.Background(), AddAccountBalanceParams{
-			ID: arg.FromAccountID,
-			Amount: - arg.Amount,
-		})
-		if err != nil {
-			return err
+		
+		//Update Accounts
+		if arg.FromAccountID < arg.ToAccountID {
+			result.FromAccount, result.ToAccount, err = addMoney(ctx, q, arg.FromAccountID, arg.ToAccountID, -arg.Amount, arg.Amount)
+		} else {
+			result.ToAccount, result.FromAccount, err = addMoney(ctx, q, arg.ToAccountID, arg.FromAccountID, arg.Amount, -arg.Amount)
 		}
-
-		//fmt.Println(txName, "get account 2")
-		// account2, err := q.GetAccountForUpdate(context.Background(), arg.ToAccountID)
-		// if err != nil {
-		// 	return err
-		// }
-
-		//fmt.Println(txName, "update account 1")
-		result.ToAccount, err = q.AddAccountBalance(context.Background(), AddAccountBalanceParams{
-			ID: arg.ToAccountID,
-			Amount: arg.Amount,
-		})
-		if err != nil {
-			return err
-		}
-
+		
 		return err
 	})
 
 	return result, err
 }
 
-
+func addMoney(
+	ctx context.Context,
+	q *Queries,
+	accountID1,
+	accountID2,
+	amount1,
+	amount2 int64,
+) (Account, Account, error) {
+	account1, err := q.AddAccountBalance(ctx, AddAccountBalanceParams{
+		ID: accountID1,
+		Amount: amount1,
+	})
+	if err != nil {
+		return Account{}, Account{}, err
+	}
+	account2, err := q.AddAccountBalance(ctx, AddAccountBalanceParams{
+		ID: accountID2,
+		Amount: amount2,
+	})
+	if err != nil {
+		return Account{}, Account{}, err
+	}
+	return account1, account2, err
+}
